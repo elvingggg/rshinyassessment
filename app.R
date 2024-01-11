@@ -3,9 +3,8 @@ library(shinythemes)
 library(readxl)
 library(ggplot2)
 
-# UI definition
 ui <- fluidPage(
-  theme = shinytheme("flatly"),  # Using a flatly theme from shinythemes
+  theme = shinytheme("flatly"),
   titlePanel("Claims Data Analysis"),
   
   sidebarLayout(
@@ -44,7 +43,7 @@ ui <- fluidPage(
 # Server logic
 server <- function(input, output, session) {
   
-  # Reactive expression to represent the number and date of loss year
+  # Reactive expression for loss year
   loss_year <- reactive({
     req(input$claims_file)
     claims_table = read_xlsx(input$claims_file$datapath)
@@ -52,13 +51,13 @@ server <- function(input, output, session) {
     unique(claims_table$'Loss Year')
   })
   
-  # Reactive expression to represent the projection table
+  # Reactive expression for data processing
   data <- reactive({
     req(input$claims_file)
     claims_table = read_xlsx(input$claims_file$datapath)
     colnames(claims_table) <- c("Loss Year", "Development Year", "Amount of Claims Paid ($)")
     
-    # Initialize empty tables for calculation
+    # Data processing steps
     paid_claims_table = matrix(0, nrow = length(loss_year()), ncol = length(loss_year()) + 1)
     cumulative_claims_table = matrix(0, nrow = length(loss_year()), ncol = length(loss_year()) + 1)
     
@@ -90,7 +89,7 @@ server <- function(input, output, session) {
     
     # Calculate development factor
     dev_factor_table = matrix(1, nrow = 1, ncol = length(loss_year()) + 1)
-    for (i in 1:length(loss_year())) {  # Excluding last development year
+    for (i in 1:length(loss_year())) {
       dev1 = 0
       dev2 = 0
       if (i != 1) {
@@ -100,7 +99,6 @@ server <- function(input, output, session) {
       }
     }
     
-    # Factor for last development year = tail_factor input
     dev_factor_table[1, length(loss_year()) + 1] = input$tail_factor
     
     # Calculate projected claims
@@ -113,7 +111,6 @@ server <- function(input, output, session) {
       }
     }
     
-    # Round projected claims table to 0 decimal places
     round_df <- function(x, digits) {
       numeric_columns <- sapply(x, mode) == 'numeric'
       x[numeric_columns] <- round(x[numeric_columns], digits)
@@ -122,7 +119,7 @@ server <- function(input, output, session) {
     round_df(projected_claims_table, 0)
   })
   
-  # Render the table
+  # Output rendering for the table
   output$proj_table <- renderDataTable({
     proj_table = as.data.frame(data())
     
@@ -136,11 +133,10 @@ server <- function(input, output, session) {
     proj_table
   })
   
-  # Render the plot
+  # Output rendering for the plot
   output$plot <- renderPlot({
     PCT = as.data.frame(data())
     
-    # Create column for x-axis
     development_year = c()
     for (i in (1:(length(loss_year()) + 1))) {
       development_year = append(development_year, i)
@@ -149,7 +145,6 @@ server <- function(input, output, session) {
     transposedPCT = as.data.frame(t(PCT))
     colnames(transposedPCT) = c("Development Year", loss_year())
     
-    # Create line plot based on loss year
     p = ggplot() + labs(x = "Development Year", y = "Cumulative Claims ($)")
     for (i in 1:length(loss_year())) {
       aes = aes_string(x = transposedPCT[, 1], y = transposedPCT[,(i + 1)], color = factor(loss_year()[i]))
@@ -159,21 +154,14 @@ server <- function(input, output, session) {
     p
   })
   
-  # Download handler for the table
+  # Download handlers
   output$download_table <- downloadHandler(
-    filename = function() {
-      paste("cumulative-claims-table", Sys.Date(), ".csv", sep = "")
-    },
-    content = function(file) {
-      write.csv(as.data.frame(data()), file, row.names = FALSE)
-    }
+    filename = function() { paste("cumulative-claims-table", Sys.Date(), ".csv", sep = "") },
+    content = function(file) { write.csv(as.data.frame(data()), file, row.names = FALSE) }
   )
   
-  # Download handler for the plot
   output$download_plot <- downloadHandler(
-    filename = function() {
-      paste("cumulative-claims-plot", Sys.Date(), ".png", sep = "")
-    },
+    filename = function() { paste("cumulative-claims-plot", Sys.Date(), ".png", sep = "") },
     content = function(file) {
       png(file)
       PCT = as.data.frame(data())
@@ -193,5 +181,4 @@ server <- function(input, output, session) {
   )
 }
 
-# Create Shiny app
 shinyApp(ui, server)
