@@ -131,7 +131,9 @@ server <- function(input, output, session) {
     proj_table = cbind(loss_year(), proj_table)
     colnames(proj_table) = c("Loss Year", dev_year_list)
     proj_table
-  })
+  }, options = list(dom = 't', paging = FALSE,searching = FALSE
+  ))
+  
   
   # Output rendering for the plot
   output$plot <- renderPlot({
